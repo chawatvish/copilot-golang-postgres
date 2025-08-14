@@ -28,10 +28,6 @@ gin-simple-app/
 │       └── response.go          # Standardized API responses
 ├── tests/
 │   └── api_test.go              # Integration tests
-├── legacy/                      # Old single-file implementation
-│   ├── main.go
-│   ├── main_test.go
-│   └── test-api-old.sh
 └── ...                         # Config files, README, etc.
 ```
 
@@ -170,14 +166,14 @@ gin-simple-app/
 
 ## Migration Summary
 
-### Before:
+### Before
 
 - Single `main.go` file with 200+ lines
 - All logic mixed together
 - Hard to test individual components
 - Difficult to extend or modify
 
-### After:
+### After
 
 - 8 focused files with clear responsibilities
 - Clean architecture with proper separation

@@ -93,8 +93,7 @@ make test-func          # Run specific test function
 ├── Makefile          # Updated with new test commands
 ├── README.md         # Updated documentation
 ├── coverage.html     # Generated coverage report
-├── coverage.out      # Coverage data file
-└── test-api-old.sh   # Original shell script (deprecated)
+└── coverage.out      # Coverage data file
 ```
 
 The refactoring successfully modernizes the testing approach while maintaining all existing functionality and adding significant improvements in reliability, maintainability, and developer experience.

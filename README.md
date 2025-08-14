@@ -44,7 +44,6 @@ A simple REST API built with Go using the Gin web framework and GORM for Postgre
 │       └── response.go          # Standardized API response structure
 ├── tests/
 │   └── api_test.go              # Comprehensive test suite
-├── legacy/                      # Backup of original implementation
 ├── .env                         # Environment variables (create from .env.example)
 ├── go.mod                       # Go module dependencies
 ├── go.sum                       # Go module checksums

@@ -53,10 +53,6 @@ test-func:
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
 
-# Run old shell script tests (deprecated - use 'make test' instead)
-test-api-old:
-	./test-api-old.sh
-
 # Start server in background
 start:
 	$(GOCMD) run ./cmd/server &
@@ -88,11 +84,10 @@ help:
 	@echo "  test-coverage   - Run tests with coverage"
 	@echo "  test-coverage-html - Generate HTML coverage report"
 	@echo "  test-func       - Run specific test function"
-	@echo "  test-api-old    - Run old shell script tests (deprecated)"
 	@echo "  start           - Start server in background"
 	@echo "  stop            - Stop background server"
 	@echo "  fmt             - Format code"
 	@echo "  lint            - Lint code"
 	@echo "  help            - Show this help message"
 
-.PHONY: build clean run deps test test-coverage test-coverage-html test-func test-api-old start stop install-tools fmt lint help
+.PHONY: build clean run deps test test-coverage test-coverage-html test-func start stop install-tools fmt lint help
