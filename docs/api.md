@@ -1,27 +1,33 @@
 # API Documentation
 
 ## Base URL
+
 ```
 http://localhost:8080
 ```
 
 ## Authentication
+
 Currently no authentication is required for any endpoints.
 
 ## Response Format
 
 ### Success Response
+
 ```json
 {
   "success": true,
   "message": "Operation successful",
-  "data": { /* response data */ },
+  "data": {
+    /* response data */
+  },
   "count": 1,
   "timestamp": "2025-08-14T22:00:00Z"
 }
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -33,11 +39,13 @@ Currently no authentication is required for any endpoints.
 ## Endpoints
 
 ### Health Check
+
 **GET** `/health`
 
 Returns the health status of the API.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -51,6 +59,7 @@ Returns the health status of the API.
 ```
 
 ### Root Endpoint
+
 **GET** `/`
 
 Returns welcome message and API information.
@@ -58,11 +67,13 @@ Returns welcome message and API information.
 ## User Management
 
 ### Get All Users
+
 **GET** `/api/v1/users`
 
 Returns a list of all users.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -84,14 +95,17 @@ Returns a list of all users.
 ```
 
 ### Get User by ID
+
 **GET** `/api/v1/users/{id}`
 
 Returns a specific user by ID.
 
 **Parameters:**
+
 - `id` (path, required): User ID
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -110,6 +124,7 @@ Returns a specific user by ID.
 ```
 
 **Error Response (404):**
+
 ```json
 {
   "success": false,
@@ -119,11 +134,13 @@ Returns a specific user by ID.
 ```
 
 ### Create User
+
 **POST** `/api/v1/users`
 
 Creates a new user.
 
 **Request Body:**
+
 ```json
 {
   "name": "John Doe",
@@ -134,12 +151,14 @@ Creates a new user.
 ```
 
 **Field Requirements:**
+
 - `name`: Required string, user's full name
 - `email`: Required string, must be valid email format and unique
 - `phone`: Required string, phone number
 - `address`: Optional string, physical address (can be omitted)
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -158,6 +177,7 @@ Creates a new user.
 ```
 
 **Error Response (400) - Validation Error:**
+
 ```json
 {
   "success": false,
@@ -167,6 +187,7 @@ Creates a new user.
 ```
 
 **Error Response (400) - Duplicate Email:**
+
 ```json
 {
   "success": false,
@@ -176,14 +197,17 @@ Creates a new user.
 ```
 
 ### Update User
+
 **PUT** `/api/v1/users/{id}`
 
 Updates an existing user.
 
 **Parameters:**
+
 - `id` (path, required): User ID
 
 **Request Body:**
+
 ```json
 {
   "name": "John Updated",
@@ -194,10 +218,12 @@ Updates an existing user.
 ```
 
 **Field Requirements:**
+
 - Same as Create User endpoint
 - All fields are required in the request body
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -216,6 +242,7 @@ Updates an existing user.
 ```
 
 **Error Response (404):**
+
 ```json
 {
   "success": false,
@@ -225,14 +252,17 @@ Updates an existing user.
 ```
 
 ### Delete User
+
 **DELETE** `/api/v1/users/{id}`
 
 Soft deletes a user (sets deleted_at timestamp).
 
 **Parameters:**
+
 - `id` (path, required): User ID
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -242,6 +272,7 @@ Soft deletes a user (sets deleted_at timestamp).
 ```
 
 **Error Response (404):**
+
 ```json
 {
   "success": false,
@@ -253,6 +284,7 @@ Soft deletes a user (sets deleted_at timestamp).
 ## cURL Examples
 
 ### Create a user with all fields:
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
@@ -265,6 +297,7 @@ curl -X POST http://localhost:8080/api/v1/users \
 ```
 
 ### Create a user without address:
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
@@ -276,11 +309,13 @@ curl -X POST http://localhost:8080/api/v1/users \
 ```
 
 ### Get all users:
+
 ```bash
 curl -X GET http://localhost:8080/api/v1/users
 ```
 
 ### Update a user:
+
 ```bash
 curl -X PUT http://localhost:8080/api/v1/users/1 \
   -H "Content-Type: application/json" \
@@ -293,6 +328,7 @@ curl -X PUT http://localhost:8080/api/v1/users/1 \
 ```
 
 ### Delete a user:
+
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/users/1
 ```
@@ -308,22 +344,26 @@ curl -X DELETE http://localhost:8080/api/v1/users/1
 ## Field Validation
 
 ### Name
+
 - Required
 - Must be non-empty string
 - No specific format restrictions
 
 ### Email
+
 - Required
 - Must be valid email format
 - Must be unique across all users
 
 ### Phone
+
 - Required for API requests
 - Stored as nullable in database for backward compatibility
 - No format validation currently enforced
 - Accepts any string format
 
 ### Address
+
 - Optional
 - Can be omitted from request
 - Stored as nullable string in database

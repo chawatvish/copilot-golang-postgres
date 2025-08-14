@@ -9,11 +9,14 @@ This document describes the implementation of phone number and address fields to
 ### 1. Database Schema Changes
 
 #### New Columns Added
+
 - `phone`: `TEXT` type, nullable, with default value `NULL`
 - `address`: `TEXT` type, nullable
 
 #### Migration Strategy
+
 The migration was designed to handle existing data gracefully:
+
 - Used GORM's auto-migration feature
 - Added columns as nullable to avoid conflicts with existing records
 - Existing users will have `NULL` values for both new fields
@@ -21,6 +24,7 @@ The migration was designed to handle existing data gracefully:
 ### 2. Model Structure Updates
 
 #### User Struct
+
 ```go
 type User struct {
     ID        uint           `json:"id" gorm:"primarykey"`
@@ -35,6 +39,7 @@ type User struct {
 ```
 
 #### Key Design Decisions
+
 - **Phone Field**: Uses `*string` (pointer) to handle nullable database storage while maintaining API requirement
 - **Address Field**: Uses `*string` (pointer) and is optional in both API and database
 - **GORM Tags**: Explicit `type:text;default:null` to ensure proper migration behavior
@@ -42,6 +47,7 @@ type User struct {
 ### 3. API Contract Updates
 
 #### Request Structures
+
 ```go
 type CreateUserRequest struct {
     Name    string  `json:"name" binding:"required"`
@@ -59,6 +65,7 @@ type UpdateUserRequest struct {
 ```
 
 #### API Behavior
+
 - **Phone**: Required field in API requests (validation enforced)
 - **Address**: Optional field (can be omitted or set to null)
 - **Response**: Both fields included in JSON responses (phone as string, address as string or null)
@@ -66,7 +73,9 @@ type UpdateUserRequest struct {
 ### 4. Service Layer Changes
 
 #### Pointer Conversion
+
 Service methods now convert string requests to pointer fields:
+
 ```go
 user := &models.User{
     Name:    req.Name,
@@ -79,22 +88,26 @@ user := &models.User{
 ### 5. Repository Layer Updates
 
 #### GORM Repository
+
 - No changes needed - GORM handles pointer types automatically
 - Migrations applied through `db.AutoMigrate(&models.User{})`
 
 #### In-Memory Repository
+
 - Updated test data with pointer variables
 - Added sample phone numbers and addresses for testing
 
 ### 6. Database Migration Process
 
 #### Successful Migration Log
+
 ```
 ALTER TABLE "users" ADD "phone" text DEFAULT null
 ALTER TABLE "users" ADD "address" text
 ```
 
 #### Migration Safety
+
 - No data loss occurred
 - Existing records preserved with NULL values for new fields
 - Backward compatibility maintained
@@ -102,19 +115,23 @@ ALTER TABLE "users" ADD "address" text
 ## Testing
 
 ### Test Coverage
+
 - ✅ All existing tests continue to pass
 - ✅ In-memory mode tests pass
 - ✅ Database mode tests pass
 - ✅ API endpoints work with new fields
 
 ### Test Data
+
 Sample data includes:
+
 - Users with phone numbers: "+1-555-0101", "+1-555-0102", "+1-555-0103"
 - Users with addresses: "123 Main St", "456 Oak Ave", "789 Pine Rd"
 
 ## API Examples
 
 ### Create User with Phone and Address
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
@@ -127,6 +144,7 @@ curl -X POST http://localhost:8080/api/v1/users \
 ```
 
 ### Create User with Phone Only
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
@@ -138,6 +156,7 @@ curl -X POST http://localhost:8080/api/v1/users \
 ```
 
 ### Response Format
+
 ```json
 {
   "id": 1,
@@ -155,28 +174,33 @@ curl -X POST http://localhost:8080/api/v1/users \
 ### Common Issues Resolved
 
 #### Migration Error: "column contains null values"
+
 **Problem**: Initial attempt to add NOT NULL constraint failed due to existing data.
 **Solution**: Used nullable field with pointer types and explicit GORM tags.
 
 #### API Validation vs Database Storage
+
 **Problem**: Need phone as required in API but nullable in database.
 **Solution**: Used `*string` for database storage with `binding:"required"` for API validation.
 
 ## Future Considerations
 
 ### Potential Enhancements
+
 - Phone number format validation
 - Address structure with separate fields (street, city, state, zip)
 - International phone number support
 - Address geocoding integration
 
 ### Database Optimization
+
 - Consider adding indexes on phone field if search functionality is needed
 - Address normalization for better querying
 
 ## Dependencies
 
 No new external dependencies were added. The implementation uses:
+
 - Existing GORM ORM functionality
 - Gin framework validation features
 - Go's built-in pointer types
