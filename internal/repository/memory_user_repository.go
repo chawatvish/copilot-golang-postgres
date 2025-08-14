@@ -19,11 +19,17 @@ type InMemoryUserRepository struct {
 // NewInMemoryUserRepository creates a new in-memory user repository with sample data
 func NewInMemoryUserRepository() *InMemoryUserRepository {
 	now := time.Now()
+	address1 := "123 Main St, New York, NY 10001"
+	address2 := "456 Oak Ave, Los Angeles, CA 90210"
+	phone1 := "+1-555-0101"
+	phone2 := "+1-555-0102"
+	phone3 := "+1-555-0103"
+	
 	return &InMemoryUserRepository{
 		users: []models.User{
-			{ID: 1, Name: "John Doe", Email: "john@example.com", CreatedAt: now, UpdatedAt: now},
-			{ID: 2, Name: "Jane Smith", Email: "jane@example.com", CreatedAt: now, UpdatedAt: now},
-			{ID: 3, Name: "Bob Johnson", Email: "bob@example.com", CreatedAt: now, UpdatedAt: now},
+			{ID: 1, Name: "John Doe", Email: "john@example.com", Phone: &phone1, Address: &address1, CreatedAt: now, UpdatedAt: now},
+			{ID: 2, Name: "Jane Smith", Email: "jane@example.com", Phone: &phone2, Address: &address2, CreatedAt: now, UpdatedAt: now},
+			{ID: 3, Name: "Bob Johnson", Email: "bob@example.com", Phone: &phone3, Address: nil, CreatedAt: now, UpdatedAt: now},
 		},
 		nextID: 4,
 	}
@@ -150,10 +156,16 @@ func (r *InMemoryUserRepository) Reset() {
 	defer r.mutex.Unlock()
 	
 	now := time.Now()
+	address1 := "123 Main St, New York, NY 10001"
+	address2 := "456 Oak Ave, Los Angeles, CA 90210"
+	phone1 := "+1-555-0101"
+	phone2 := "+1-555-0102"
+	phone3 := "+1-555-0103"
+	
 	r.users = []models.User{
-		{ID: 1, Name: "John Doe", Email: "john@example.com", CreatedAt: now, UpdatedAt: now},
-		{ID: 2, Name: "Jane Smith", Email: "jane@example.com", CreatedAt: now, UpdatedAt: now},
-		{ID: 3, Name: "Bob Johnson", Email: "bob@example.com", CreatedAt: now, UpdatedAt: now},
+		{ID: 1, Name: "John Doe", Email: "john@example.com", Phone: &phone1, Address: &address1, CreatedAt: now, UpdatedAt: now},
+		{ID: 2, Name: "Jane Smith", Email: "jane@example.com", Phone: &phone2, Address: &address2, CreatedAt: now, UpdatedAt: now},
+		{ID: 3, Name: "Bob Johnson", Email: "bob@example.com", Phone: &phone3, Address: nil, CreatedAt: now, UpdatedAt: now},
 	}
 	r.nextID = 4
 }

@@ -56,8 +56,10 @@ func (s *UserServiceImpl) CreateUser(req models.CreateUserRequest) (*models.User
 	}
 	
 	user := &models.User{
-		Name:  req.Name,
-		Email: req.Email,
+		Name:    req.Name,
+		Email:   req.Email,
+		Phone:   &req.Phone,
+		Address: req.Address,
 	}
 	
 	err = s.userRepo.Create(user)
@@ -90,6 +92,8 @@ func (s *UserServiceImpl) UpdateUser(id uint, req models.UpdateUserRequest) (*mo
 	// Update user fields
 	user.Name = req.Name
 	user.Email = req.Email
+	user.Phone = &req.Phone
+	user.Address = req.Address
 	
 	err = s.userRepo.Update(user)
 	if err != nil {

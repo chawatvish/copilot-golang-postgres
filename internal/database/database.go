@@ -74,10 +74,16 @@ func SeedData() error {
 	}
 
 	// Seed initial users
+	address1 := "123 Main St, New York, NY 10001"
+	address2 := "456 Oak Ave, Los Angeles, CA 90210"
+	phone1 := "+1-555-0101"
+	phone2 := "+1-555-0102"
+	phone3 := "+1-555-0103"
+	
 	users := []models.User{
-		{Name: "John Doe", Email: "john@example.com"},
-		{Name: "Jane Smith", Email: "jane@example.com"},
-		{Name: "Bob Johnson", Email: "bob@example.com"},
+		{Name: "John Doe", Email: "john@example.com", Phone: &phone1, Address: &address1},
+		{Name: "Jane Smith", Email: "jane@example.com", Phone: &phone2, Address: &address2},
+		{Name: "Bob Johnson", Email: "bob@example.com", Phone: &phone3, Address: nil}, // No address
 	}
 
 	result := DB.Create(&users)

@@ -112,6 +112,8 @@ func TestGetAllUsers(t *testing.T) {
 	assert.Equal(t, float64(1), firstUser["id"])
 	assert.Equal(t, "John Doe", firstUser["name"])
 	assert.Equal(t, "john@example.com", firstUser["email"])
+	assert.Equal(t, "+1-555-0101", firstUser["phone"])
+	assert.Equal(t, "123 Main St, New York, NY 10001", firstUser["address"])
 }
 
 func TestGetUserByID(t *testing.T) {
@@ -134,6 +136,8 @@ func TestGetUserByID(t *testing.T) {
 	assert.Equal(t, float64(1), userData["id"])
 	assert.Equal(t, "John Doe", userData["name"])
 	assert.Equal(t, "john@example.com", userData["email"])
+	assert.Equal(t, "+1-555-0101", userData["phone"])
+	assert.Equal(t, "123 Main St, New York, NY 10001", userData["address"])
 }
 
 func TestGetUserByIDNotFound(t *testing.T) {
@@ -175,8 +179,10 @@ func TestCreateUser(t *testing.T) {
 	app.resetTestData()
 
 	newUser := map[string]string{
-		"name":  "Alice Cooper",
-		"email": "alice@example.com",
+		"name":    "Alice Cooper",
+		"email":   "alice@example.com",
+		"phone":   "+1-555-0104",
+		"address": "789 Pine St, Chicago, IL 60601",
 	}
 
 	jsonData, _ := json.Marshal(newUser)
@@ -198,6 +204,8 @@ func TestCreateUser(t *testing.T) {
 	assert.Equal(t, float64(4), userData["id"]) // Should be assigned ID 4
 	assert.Equal(t, "Alice Cooper", userData["name"])
 	assert.Equal(t, "alice@example.com", userData["email"])
+	assert.Equal(t, "+1-555-0104", userData["phone"])
+	assert.Equal(t, "789 Pine St, Chicago, IL 60601", userData["address"])
 }
 
 func TestCreateUserDuplicateEmail(t *testing.T) {
@@ -207,6 +215,7 @@ func TestCreateUserDuplicateEmail(t *testing.T) {
 	newUser := map[string]string{
 		"name":  "John Smith",
 		"email": "john@example.com", // This email already exists
+		"phone": "+1-555-0999",
 	}
 
 	jsonData, _ := json.Marshal(newUser)
@@ -273,8 +282,10 @@ func TestUpdateUser(t *testing.T) {
 	app.resetTestData()
 
 	updatedUser := map[string]string{
-		"name":  "John Updated",
-		"email": "john.updated@example.com",
+		"name":    "John Updated",
+		"email":   "john.updated@example.com",
+		"phone":   "+1-555-0111",
+		"address": "Updated Address St, Updated City, UC 12345",
 	}
 
 	jsonData, _ := json.Marshal(updatedUser)
@@ -296,6 +307,8 @@ func TestUpdateUser(t *testing.T) {
 	assert.Equal(t, float64(1), userData["id"])
 	assert.Equal(t, "John Updated", userData["name"])
 	assert.Equal(t, "john.updated@example.com", userData["email"])
+	assert.Equal(t, "+1-555-0111", userData["phone"])
+	assert.Equal(t, "Updated Address St, Updated City, UC 12345", userData["address"])
 }
 
 func TestUpdateUserNotFound(t *testing.T) {
@@ -305,6 +318,7 @@ func TestUpdateUserNotFound(t *testing.T) {
 	updatedUser := map[string]string{
 		"name":  "Non Existent",
 		"email": "nonexistent@example.com",
+		"phone": "+1-555-9999",
 	}
 
 	jsonData, _ := json.Marshal(updatedUser)
@@ -389,6 +403,7 @@ func TestCompleteUserLifecycle(t *testing.T) {
 	newUser := map[string]string{
 		"name":  "Lifecycle Test",
 		"email": "lifecycle@example.com",
+		"phone": "+1-555-LIFE",
 	}
 	jsonData, _ := json.Marshal(newUser)
 
@@ -421,6 +436,7 @@ func TestCompleteUserLifecycle(t *testing.T) {
 	updatedUser := map[string]string{
 		"name":  "Lifecycle Updated",
 		"email": "lifecycle.updated@example.com",
+		"phone": "+1-555-UPDT",
 	}
 	updateData, _ := json.Marshal(updatedUser)
 
