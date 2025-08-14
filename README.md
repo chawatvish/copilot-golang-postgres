@@ -2,17 +2,48 @@
 
 A simple REST API built with Go using the Gin web framework and GORM for PostgreSQL database integration.
 
+## Recent Updates
+
+### Version 2.0 - User Contact Information (August 2025)
+
+Added comprehensive contact information support to the User model:
+
+- **Phone Number Field**: Required in API requests, stored as nullable text in database
+- **Address Field**: Optional in both API and database
+- **Database Migration**: Seamless upgrade of existing tables with backward compatibility
+- **Pointer Types**: Uses Go pointer types (`*string`) to handle nullable database fields
+- **API Validation**: Phone number required for new users, address optional
+- **Test Coverage**: All existing tests pass, new functionality fully tested
+
+#### Migration Details
+
+- Existing users automatically get `NULL` values for new fields
+- No data loss during migration
+- Database and in-memory modes both supported
+- GORM handles the migration automatically with proper NULL constraints
+
+#### API Changes
+
+- **CREATE/UPDATE requests**: Now require `phone` field, `address` is optional
+- **Response format**: Includes phone and address fields in all user responses
+- **Backward compatibility**: Existing API clients need to provide phone field
+
+For detailed technical documentation, see [User Model Update Documentation](docs/user-model-update.md).
+
 ## Features
 
 - Clean Architecture pattern with layered design
 - RESTful endpoints for user management (CRUD operations)
+- User model with contact information (phone number and address)
 - PostgreSQL database integration with GORM
 - In-memory fallback for testing and development
+- Database migrations with backward compatibility
 - Comprehensive test suite
 - Environment-based configuration
 - Database migrations and seeding
 - JSON structured responses
 - Error handling with proper HTTP status codes
+- Pointer type handling for nullable database fields
 
 ## Project Structure
 
@@ -184,9 +215,13 @@ Content-Type: application/json
 
 {
     "name": "John Doe",
-    "email": "john@example.com"
+    "email": "john@example.com",
+    "phone": "+1-555-0123",
+    "address": "123 Main Street"
 }
 ```
+
+Note: `phone` is required, `address` is optional.
 
 #### Update User
 
@@ -196,7 +231,9 @@ Content-Type: application/json
 
 {
     "name": "John Updated",
-    "email": "john.updated@example.com"
+    "email": "john.updated@example.com",
+    "phone": "+1-555-0124",
+    "address": "456 Oak Avenue"
 }
 ```
 
@@ -279,11 +316,21 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    phone TEXT,
+    address TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 ```
+
+#### User Fields
+
+- `name`: Required string, user's full name
+- `email`: Required string, unique email address
+- `phone`: Optional string in database, required in API (nullable for existing records)
+- `address`: Optional string, user's physical address
+- Standard GORM timestamps (created_at, updated_at, deleted_at)
 
 ## Development
 
