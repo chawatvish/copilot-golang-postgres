@@ -25,11 +25,29 @@ func NewInMemoryUserRepository() *InMemoryUserRepository {
 	phone2 := "+1-555-0102"
 	phone3 := "+1-555-0103"
 	
+	// Sample hashed password for "password123" (you would hash this properly in real scenarios)
+	hashedPassword := "$2a$10$PRkUo7SyJOOXSJOguUjpvOAEM25ZGLUckW4IxYnL2sUpXTdnWRFVK"
+	
 	return &InMemoryUserRepository{
 		users: []models.User{
-			{ID: 1, Name: "John Doe", Email: "john@example.com", Phone: &phone1, Address: &address1, CreatedAt: now, UpdatedAt: now},
-			{ID: 2, Name: "Jane Smith", Email: "jane@example.com", Phone: &phone2, Address: &address2, CreatedAt: now, UpdatedAt: now},
-			{ID: 3, Name: "Bob Johnson", Email: "bob@example.com", Phone: &phone3, Address: nil, CreatedAt: now, UpdatedAt: now},
+			{
+				ID: 1, Name: "John Doe", Email: "john@example.com", 
+				Password: hashedPassword, Phone: &phone1, Address: &address1, 
+				IsActive: true, IsEmailVerified: true,
+				CreatedAt: now, UpdatedAt: now,
+			},
+			{
+				ID: 2, Name: "Jane Smith", Email: "jane@example.com", 
+				Password: hashedPassword, Phone: &phone2, Address: &address2, 
+				IsActive: true, IsEmailVerified: true,
+				CreatedAt: now, UpdatedAt: now,
+			},
+			{
+				ID: 3, Name: "Bob Johnson", Email: "bob@example.com", 
+				Password: hashedPassword, Phone: &phone3, Address: nil, 
+				IsActive: true, IsEmailVerified: false,
+				CreatedAt: now, UpdatedAt: now,
+			},
 		},
 		nextID: 4,
 	}
@@ -71,6 +89,20 @@ func (r *InMemoryUserRepository) GetByEmail(email string) (*models.User, error) 
 	
 	for _, user := range r.users {
 		if user.Email == email && user.DeletedAt.Time.IsZero() {
+			userCopy := user
+			return &userCopy, nil
+		}
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+// GetByPasswordResetToken returns a user by password reset token
+func (r *InMemoryUserRepository) GetByPasswordResetToken(token string) (*models.User, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	
+	for _, user := range r.users {
+		if user.PasswordResetToken != nil && *user.PasswordResetToken == token && user.DeletedAt.Time.IsZero() {
 			userCopy := user
 			return &userCopy, nil
 		}
@@ -162,10 +194,28 @@ func (r *InMemoryUserRepository) Reset() {
 	phone2 := "+1-555-0102"
 	phone3 := "+1-555-0103"
 	
+	// Sample hashed password for "password123"
+	hashedPassword := "$2a$10$PRkUo7SyJOOXSJOguUjpvOAEM25ZGLUckW4IxYnL2sUpXTdnWRFVK"
+	
 	r.users = []models.User{
-		{ID: 1, Name: "John Doe", Email: "john@example.com", Phone: &phone1, Address: &address1, CreatedAt: now, UpdatedAt: now},
-		{ID: 2, Name: "Jane Smith", Email: "jane@example.com", Phone: &phone2, Address: &address2, CreatedAt: now, UpdatedAt: now},
-		{ID: 3, Name: "Bob Johnson", Email: "bob@example.com", Phone: &phone3, Address: nil, CreatedAt: now, UpdatedAt: now},
+		{
+			ID: 1, Name: "John Doe", Email: "john@example.com", 
+			Password: hashedPassword, Phone: &phone1, Address: &address1, 
+			IsActive: true, IsEmailVerified: true,
+			CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			ID: 2, Name: "Jane Smith", Email: "jane@example.com", 
+			Password: hashedPassword, Phone: &phone2, Address: &address2, 
+			IsActive: true, IsEmailVerified: true,
+			CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			ID: 3, Name: "Bob Johnson", Email: "bob@example.com", 
+			Password: hashedPassword, Phone: &phone3, Address: nil, 
+			IsActive: true, IsEmailVerified: false,
+			CreatedAt: now, UpdatedAt: now,
+		},
 	}
 	r.nextID = 4
 }

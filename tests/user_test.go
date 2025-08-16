@@ -3,102 +3,32 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"gin-simple-app/internal/handlers"
-	"gin-simple-app/internal/repository"
-	"gin-simple-app/internal/router"
-	"gin-simple-app/internal/services"
 	"gin-simple-app/pkg/response"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
-
-// TestApp holds the application components for testing
-type TestApp struct {
-	router   *gin.Engine
-	userRepo *repository.InMemoryUserRepository
-}
-
-// setupTestApp initializes the application for testing
-func setupTestApp() *TestApp {
-	gin.SetMode(gin.TestMode)
-
-	// Initialize components with in-memory repository for testing
-	userRepo := repository.NewInMemoryUserRepository()
-	userService := services.NewUserService(userRepo)
-	userHandler := handlers.NewUserHandler(userService)
-	healthHandler := handlers.NewHealthHandler()
-	appRouter := router.NewRouter(userHandler, healthHandler)
-
-	return &TestApp{
-		router:   appRouter.SetupRoutes(),
-		userRepo: userRepo,
-	}
-}
-
-// resetTestData resets the test data before each test
-func (app *TestApp) resetTestData() {
-	app.userRepo.Reset()
-}
-
-func TestHealthEndpoint(t *testing.T) {
-	app := setupTestApp()
-	app.resetTestData()
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/health", nil)
-	app.router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	assert.True(t, response.Success)
-	assert.Equal(t, "Health check successful", response.Message)
-
-	data := response.Data.(map[string]interface{})
-	assert.Equal(t, "ok", data["status"])
-	assert.Equal(t, "Gin REST API is running", data["message"])
-}
-
-func TestRootEndpoint(t *testing.T) {
-	app := setupTestApp()
-	app.resetTestData()
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/", nil)
-	app.router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	assert.True(t, response.Success)
-	assert.Equal(t, "Welcome", response.Message)
-
-	data := response.Data.(map[string]interface{})
-	assert.Equal(t, "Welcome to Gin Simple REST API", data["message"])
-	assert.Equal(t, "1.0.0", data["version"])
-}
 
 func TestGetAllUsers(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/users", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response.Success)
 	assert.Equal(t, "Users retrieved successfully", response.Message)
@@ -116,18 +46,40 @@ func TestGetAllUsers(t *testing.T) {
 	assert.Equal(t, "123 Main St, New York, NY 10001", firstUser["address"])
 }
 
-func TestGetUserByID(t *testing.T) {
+func TestGetAllUsersUnauthorized(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
 	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/users", nil)
+	app.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+	var response response.APIResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.False(t, response.Success)
+	assert.Equal(t, "Authorization header required", response.Error)
+}
+
+func TestGetUserByID(t *testing.T) {
+	app := setupTestApp()
+	app.resetTestData()
+
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
+	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/users/1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response.Success)
 	assert.Equal(t, "User retrieved successfully", response.Message)
@@ -144,14 +96,19 @@ func TestGetUserByIDNotFound(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/users/999", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.False(t, response.Success)
 	assert.Equal(t, "User not found", response.Error)
@@ -161,14 +118,19 @@ func TestGetUserByIDInvalid(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/users/invalid", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.False(t, response.Success)
 	assert.Equal(t, "Invalid user ID", response.Error)
@@ -178,11 +140,16 @@ func TestCreateUser(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	newUser := map[string]string{
-		"name":    "Alice Cooper",
-		"email":   "alice@example.com",
-		"phone":   "+1-555-0104",
-		"address": "789 Pine St, Chicago, IL 60601",
+		"name":     "Alice Cooper",
+		"email":    "alice@example.com",
+		"phone":    "+1-555-0104",
+		"address":  "789 Pine St, Chicago, IL 60601",
+		"password": "alicepass123",
 	}
 
 	jsonData, _ := json.Marshal(newUser)
@@ -190,12 +157,13 @@ func TestCreateUser(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/v1/users", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response.Success)
 	assert.Equal(t, "User created successfully", response.Message)
@@ -212,10 +180,15 @@ func TestCreateUserDuplicateEmail(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	newUser := map[string]string{
-		"name":  "John Smith",
-		"email": "john@example.com", // This email already exists
-		"phone": "+1-555-0999",
+		"name":     "John Smith",
+		"email":    "john@example.com", // This email already exists
+		"phone":    "+1-555-0999",
+		"password": "johnpass456",
 	}
 
 	jsonData, _ := json.Marshal(newUser)
@@ -223,12 +196,13 @@ func TestCreateUserDuplicateEmail(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/v1/users", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.False(t, response.Success)
 	assert.Equal(t, "User with this email already exists", response.Error)
@@ -238,27 +212,36 @@ func TestCreateUserInvalidJSON(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/v1/users", bytes.NewBuffer([]byte("invalid json")))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.False(t, response.Success)
-	assert.Contains(t, response.Error, "invalid character")
+	assert.Equal(t, "Invalid JSON", response.Error)
 }
 
 func TestCreateUserMissingFields(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	newUser := map[string]string{
 		"name": "Alice Cooper",
-		// missing email
+		// missing email and password
 	}
 
 	jsonData, _ := json.Marshal(newUser)
@@ -266,12 +249,13 @@ func TestCreateUserMissingFields(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/v1/users", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.False(t, response.Success)
 	assert.Contains(t, response.Error, "required")
@@ -280,6 +264,10 @@ func TestCreateUserMissingFields(t *testing.T) {
 func TestUpdateUser(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
+
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
 
 	updatedUser := map[string]string{
 		"name":    "John Updated",
@@ -293,12 +281,13 @@ func TestUpdateUser(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("PUT", "/api/v1/users/1", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response.Success)
 	assert.Equal(t, "User updated successfully", response.Message)
@@ -315,6 +304,10 @@ func TestUpdateUserNotFound(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	updatedUser := map[string]string{
 		"name":  "Non Existent",
 		"email": "nonexistent@example.com",
@@ -326,12 +319,13 @@ func TestUpdateUserNotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("PUT", "/api/v1/users/999", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.False(t, response.Success)
 	assert.Equal(t, "User not found", response.Error)
@@ -341,21 +335,27 @@ func TestDeleteUser(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	// First verify the user exists
 	w1 := httptest.NewRecorder()
 	req1, _ := http.NewRequest("GET", "/api/v1/users/3", nil)
+	req1.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w1, req1)
 	assert.Equal(t, http.StatusOK, w1.Code)
 
 	// Delete the user
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("DELETE", "/api/v1/users/3", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response.Success)
 	assert.Equal(t, "User deleted successfully", response.Message)
@@ -363,6 +363,7 @@ func TestDeleteUser(t *testing.T) {
 	// Verify the user is deleted
 	w2 := httptest.NewRecorder()
 	req2, _ := http.NewRequest("GET", "/api/v1/users/3", nil)
+	req2.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w2, req2)
 	assert.Equal(t, http.StatusNotFound, w2.Code)
 }
@@ -371,14 +372,19 @@ func TestDeleteUserNotFound(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("DELETE", "/api/v1/users/999", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	var response response.APIResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.False(t, response.Success)
 	assert.Equal(t, "User not found", response.Error)
@@ -388,28 +394,35 @@ func TestCompleteUserLifecycle(t *testing.T) {
 	app := setupTestApp()
 	app.resetTestData()
 
+	// Login to get token
+	token, err := app.loginUser("john@example.com", "password123")
+	assert.NoError(t, err)
+
 	// 1. Get initial user count
 	w1 := httptest.NewRecorder()
 	req1, _ := http.NewRequest("GET", "/api/v1/users", nil)
+	req1.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w1, req1)
 	assert.Equal(t, http.StatusOK, w1.Code)
 
 	var initialResponse response.APIResponse
-	err := json.Unmarshal(w1.Body.Bytes(), &initialResponse)
+	err = json.Unmarshal(w1.Body.Bytes(), &initialResponse)
 	assert.NoError(t, err)
 	initialCount := *initialResponse.Count
 
 	// 2. Create a new user
 	newUser := map[string]string{
-		"name":  "Lifecycle Test",
-		"email": "lifecycle@example.com",
-		"phone": "+1-555-LIFE",
+		"name":     "Lifecycle Test",
+		"email":    "lifecycle@example.com",
+		"phone":    "+1-555-LIFE",
+		"password": "lifecyclepass123",
 	}
 	jsonData, _ := json.Marshal(newUser)
 
 	w2 := httptest.NewRecorder()
 	req2, _ := http.NewRequest("POST", "/api/v1/users", bytes.NewBuffer(jsonData))
 	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w2, req2)
 	assert.Equal(t, http.StatusCreated, w2.Code)
 
@@ -423,6 +436,7 @@ func TestCompleteUserLifecycle(t *testing.T) {
 	// 3. Verify user count increased
 	w3 := httptest.NewRecorder()
 	req3, _ := http.NewRequest("GET", "/api/v1/users", nil)
+	req3.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w3, req3)
 	assert.Equal(t, http.StatusOK, w3.Code)
 
@@ -443,12 +457,14 @@ func TestCompleteUserLifecycle(t *testing.T) {
 	w4 := httptest.NewRecorder()
 	req4, _ := http.NewRequest("PUT", "/api/v1/users/"+strconv.FormatUint(uint64(userID), 10), bytes.NewBuffer(updateData))
 	req4.Header.Set("Content-Type", "application/json")
+	req4.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w4, req4)
 	assert.Equal(t, http.StatusOK, w4.Code)
 
 	// 5. Verify the update
 	w5 := httptest.NewRecorder()
 	req5, _ := http.NewRequest("GET", "/api/v1/users/"+strconv.FormatUint(uint64(userID), 10), nil)
+	req5.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w5, req5)
 	assert.Equal(t, http.StatusOK, w5.Code)
 
@@ -463,12 +479,14 @@ func TestCompleteUserLifecycle(t *testing.T) {
 	// 6. Delete the user
 	w6 := httptest.NewRecorder()
 	req6, _ := http.NewRequest("DELETE", "/api/v1/users/"+strconv.FormatUint(uint64(userID), 10), nil)
+	req6.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w6, req6)
 	assert.Equal(t, http.StatusOK, w6.Code)
 
 	// 7. Verify user count returned to initial
 	w7 := httptest.NewRecorder()
 	req7, _ := http.NewRequest("GET", "/api/v1/users", nil)
+	req7.Header.Set("Authorization", "Bearer "+token)
 	app.router.ServeHTTP(w7, req7)
 	assert.Equal(t, http.StatusOK, w7.Code)
 

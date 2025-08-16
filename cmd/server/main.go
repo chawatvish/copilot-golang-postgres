@@ -13,6 +13,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func main() {
 	// Load configuration
 	cfg, err := config.Load()
@@ -43,15 +51,17 @@ func runWithDatabaseRepository(cfg *config.Config) {
 	// Initialize repository with database
 	userRepo := repository.NewGormUserRepository(database.GetDB())
 
-	// Initialize service
+	// Initialize services
 	userService := services.NewUserService(userRepo)
+	authService := services.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.GetJWTExpiry())
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
+	authHandler := handlers.NewAuthHandler(authService)
 	healthHandler := handlers.NewHealthHandler()
 
 	// Initialize router
-	appRouter := router.NewRouter(userHandler, healthHandler)
+	appRouter := router.NewRouter(userHandler, authHandler, healthHandler, authService, userService)
 
 	// Setup routes
 	engine := appRouter.SetupRoutes()
@@ -59,6 +69,9 @@ func runWithDatabaseRepository(cfg *config.Config) {
 	// Start server
 	port := ":" + cfg.Server.Port
 	log.Printf("Starting server on %s (Database mode)", port)
+	log.Printf("JWT Secret: %s (first 10 chars)", cfg.JWT.Secret[:min(10, len(cfg.JWT.Secret))])
+	log.Printf("JWT Expiry: %v hours", cfg.JWT.ExpireHour)
+	
 	if err := engine.Run(port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
@@ -77,15 +90,17 @@ func runWithInMemoryRepository(cfg *config.Config) {
 	// Initialize repository with in-memory storage
 	userRepo := repository.NewInMemoryUserRepository()
 
-	// Initialize service
+	// Initialize services
 	userService := services.NewUserService(userRepo)
+	authService := services.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.GetJWTExpiry())
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
+	authHandler := handlers.NewAuthHandler(authService)
 	healthHandler := handlers.NewHealthHandler()
 
 	// Initialize router
-	appRouter := router.NewRouter(userHandler, healthHandler)
+	appRouter := router.NewRouter(userHandler, authHandler, healthHandler, authService, userService)
 
 	// Setup routes
 	engine := appRouter.SetupRoutes()
@@ -93,6 +108,9 @@ func runWithInMemoryRepository(cfg *config.Config) {
 	// Start server
 	port := ":" + cfg.Server.Port
 	log.Printf("Starting server on %s (In-memory mode)", port)
+	log.Printf("JWT Secret: %s (first 10 chars)", cfg.JWT.Secret[:min(10, len(cfg.JWT.Secret))])
+	log.Printf("JWT Expiry: %v hours", cfg.JWT.ExpireHour)
+	
 	if err := engine.Run(port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
@@ -105,16 +123,19 @@ func init() {
 	// Handle graceful shutdown
 	// This is a basic example - in production, you'd want more sophisticated signal handling
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
-		log.Println("Gin Simple REST API")
+		log.Println("Gin Simple REST API with Authentication")
 		log.Println("Environment Variables:")
-		log.Println("  DB_HOST     - Database host (default: localhost)")
-		log.Println("  DB_PORT     - Database port (default: 5432)")
-		log.Println("  DB_USER     - Database user (default: postgres)")
-		log.Println("  DB_PASSWORD - Database password (default: password)")
-		log.Println("  DB_NAME     - Database name (default: gin_app)")
-		log.Println("  DB_SSLMODE  - SSL mode (default: disable)")
-		log.Println("  PORT        - Server port (default: 8080)")
-		log.Println("  GIN_MODE    - Gin mode (default: debug)")
+		log.Println("  DB_HOST        - Database host (default: localhost)")
+		log.Println("  DB_PORT        - Database port (default: 5432)")
+		log.Println("  DB_USER        - Database user (default: postgres)")
+		log.Println("  DB_PASSWORD    - Database password (default: password)")
+		log.Println("  DB_NAME        - Database name (default: gin_app)")
+		log.Println("  DB_SSLMODE     - SSL mode (default: disable)")
+		log.Println("  PORT           - Server port (default: 8080)")
+		log.Println("  SERVER_PORT    - Server port (alternative to PORT)")
+		log.Println("  GIN_MODE       - Gin mode (default: debug)")
+		log.Println("  JWT_SECRET     - JWT secret key (default: your-secret-key-change-this-in-production)")
+		log.Println("  JWT_EXPIRE_HOUR - JWT expiry in hours (default: 24)")
 		os.Exit(0)
 	}
 }

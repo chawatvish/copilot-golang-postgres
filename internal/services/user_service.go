@@ -5,6 +5,7 @@ import (
 	"gin-simple-app/internal/models"
 	"gin-simple-app/internal/repository"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -55,11 +56,20 @@ func (s *UserServiceImpl) CreateUser(req models.CreateUserRequest) (*models.User
 		return nil, errors.New("user with this email already exists")
 	}
 	
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, errors.New("failed to hash password")
+	}
+	
 	user := &models.User{
-		Name:    req.Name,
-		Email:   req.Email,
-		Phone:   &req.Phone,
-		Address: req.Address,
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: string(hashedPassword),
+		Phone:    &req.Phone,
+		Address:  req.Address,
+		IsActive: true,
+		IsEmailVerified: false,
 	}
 	
 	err = s.userRepo.Create(user)

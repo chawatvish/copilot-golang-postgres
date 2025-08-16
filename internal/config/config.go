@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -12,6 +14,7 @@ import (
 type Config struct {
 	Database DatabaseConfig
 	Server   ServerConfig
+	JWT      JWTConfig
 }
 
 // DatabaseConfig holds database configuration
@@ -30,11 +33,25 @@ type ServerConfig struct {
 	GinMode string
 }
 
+// JWTConfig holds JWT configuration
+type JWTConfig struct {
+	Secret     string
+	ExpireHour int
+}
+
 // Load loads configuration from environment variables
 func Load() (*Config, error) {
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
 		log.Printf("Warning: .env file not found: %v", err)
+	}
+
+	// Parse JWT expire hours
+	expireHour := 24 // default 24 hours
+	if expireStr := getEnv("JWT_EXPIRE_HOUR", "24"); expireStr != "" {
+		if parsed, err := strconv.Atoi(expireStr); err == nil {
+			expireHour = parsed
+		}
 	}
 
 	config := &Config{
@@ -50,6 +67,10 @@ func Load() (*Config, error) {
 			Port:    getEnv("SERVER_PORT", getEnv("PORT", "8080")), // Check SERVER_PORT first, then PORT, then default
 			GinMode: getEnv("GIN_MODE", "debug"),
 		},
+		JWT: JWTConfig{
+			Secret:     getEnv("JWT_SECRET", "your-secret-key-change-this-in-production"),
+			ExpireHour: expireHour,
+		},
 	}
 
 	return config, nil
@@ -61,6 +82,11 @@ func (db *DatabaseConfig) GetDSN() string {
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		db.Host, db.Port, db.User, db.Password, db.Name, db.SSLMode,
 	)
+}
+
+// GetJWTExpiry returns JWT expiry duration
+func (j *JWTConfig) GetJWTExpiry() time.Duration {
+	return time.Duration(j.ExpireHour) * time.Hour
 }
 
 // getEnv gets an environment variable with a default fallback
