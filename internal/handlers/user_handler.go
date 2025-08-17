@@ -6,6 +6,7 @@ import (
 	"gin-simple-app/pkg/response"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -59,14 +60,19 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req models.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ValidationError(c, err)
+		// Check if it's a JSON parsing error or validation error
+		if err.Error() == "EOF" || strings.Contains(err.Error(), "invalid character") {
+			response.BadRequest(c, "Invalid JSON")
+		} else {
+			response.ValidationError(c, err)
+		}
 		return
 	}
 
 	user, err := h.userService.CreateUser(req)
 	if err != nil {
 		if err.Error() == "user with this email already exists" {
-			response.BadRequest(c, "User with this email already exists")
+			response.Conflict(c, "User with this email already exists")
 			return
 		}
 		response.InternalServerError(c, "Failed to create user")

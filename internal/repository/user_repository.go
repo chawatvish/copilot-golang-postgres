@@ -11,6 +11,7 @@ type UserRepository interface {
 	GetAll() ([]models.User, error)
 	GetByID(id uint) (*models.User, error)
 	GetByEmail(email string) (*models.User, error)
+	GetByPasswordResetToken(token string) (*models.User, error)
 	Create(user *models.User) error
 	Update(user *models.User) error
 	Delete(id uint) error
@@ -50,6 +51,16 @@ func (r *GormUserRepository) GetByID(id uint) (*models.User, error) {
 func (r *GormUserRepository) GetByEmail(email string) (*models.User, error) {
 	var user models.User
 	err := r.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetByPasswordResetToken returns a user by password reset token
+func (r *GormUserRepository) GetByPasswordResetToken(token string) (*models.User, error) {
+	var user models.User
+	err := r.db.Where("password_reset_token = ?", token).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
