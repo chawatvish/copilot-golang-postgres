@@ -2,10 +2,12 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"gin-simple-app/internal/models"
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
@@ -233,61 +235,110 @@ func TestAuthService_Login(t *testing.T) {
 }
 
 func TestAuthService_ValidateToken(t *testing.T) {
-	mockRepo := &MockUserRepository{}
-	service := NewAuthService(mockRepo, "test-secret", 24*time.Hour)
-	
-	// Generate a valid token first
-	user := &models.User{ID: 1, Email: "john@example.com"}
-	authService := service.(*AuthServiceImpl)
-	token, _, err := authService.generateJWTToken(user.ID, user.Email)
-	assert.NoError(t, err)
+    mockRepo := &MockUserRepository{}
+    service := NewAuthService(mockRepo, "test-secret", 24*time.Hour)
+    
+    // Generate a valid token first
+    user := &models.User{ID: 1, Email: "john@example.com"}
+    authService := service.(*AuthServiceImpl)
+    token, _, err := authService.generateJWTToken(user.ID, user.Email)
+    assert.NoError(t, err)
 
-	tests := []struct {
-		name         string
-		token        string
-		expectError  bool
-		errorMessage string
-	}{
-		{
-			name:        "valid token",
-			token:       token,
-			expectError: false,
-		},
-		{
-			name:         "invalid token",
-			token:        "invalid.token.here",
-			expectError:  true,
-			errorMessage: "malformed",
-		},
-		{
-			name:         "empty token",
-			token:        "",
-			expectError:  true,
-			errorMessage: "malformed",
-		},
-	}
+    // Create a tampered token with modified expiration
+    tamperedToken := createTamperedToken(t, user.ID, user.Email)
+    
+    // Create an expired token for testing
+    expiredToken := createExpiredToken(t, user.ID, user.Email, "test-secret")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			claims, err := service.ValidateToken(tt.token)
-			
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMessage != "" {
-					assert.Contains(t, err.Error(), tt.errorMessage)
-				}
-				assert.Nil(t, claims)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, claims)
-				
-				// Extract user ID from claims
-				userIDFloat, exists := (*claims)["user_id"]
-				assert.True(t, exists)
-				assert.Equal(t, float64(1), userIDFloat)
-			}
-		})
-	}
+    tests := []struct {
+        name         string
+        token        string
+        expectError  bool
+        errorMessage string
+    }{
+        {
+            name:        "valid token",
+            token:       token,
+            expectError: false,
+        },
+        {
+            name:         "invalid token",
+            token:        "invalid.token.here",
+            expectError:  true,
+            errorMessage: "malformed",
+        },
+        {
+            name:         "empty token",
+            token:        "",
+            expectError:  true,
+            errorMessage: "malformed",
+        },
+        {
+            name:         "tampered token with modified expiration",
+            token:        tamperedToken,
+            expectError:  true,
+            errorMessage: "signature is invalid", // JWT library will detect signature mismatch
+        },
+        {
+            name:         "expired token",
+            token:        expiredToken,
+            expectError:  true,
+            errorMessage: "token is expired",
+        },
+        {
+            name:         "token with wrong secret",
+            token:        createTokenWithWrongSecret(t, user.ID, user.Email),
+            expectError:  true,
+            errorMessage: "signature is invalid",
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            claims, err := service.ValidateToken(tt.token)
+            
+            if tt.expectError {
+                assert.Error(t, err)
+                if tt.errorMessage != "" {
+                    assert.Contains(t, err.Error(), tt.errorMessage)
+                }
+                assert.Nil(t, claims)
+            } else {
+                assert.NoError(t, err)
+                assert.NotNil(t, claims)
+                
+                // Extract user ID from claims
+                userIDFloat, exists := (*claims)["user_id"]
+                assert.True(t, exists)
+                assert.Equal(t, float64(1), userIDFloat)
+            }
+        })
+    }
+}
+
+// Helper function to create a tampered token (modified payload but wrong signature)
+func createTamperedToken(t *testing.T, userID uint, email string) string {
+    // Create a token with extended expiration but don't sign it with the correct secret
+    now := time.Now()
+    // Extend expiration by 10 years (this is the "hijack" attempt)
+    maliciousExpiresAt := now.Add(10 * 365 * 24 * time.Hour)
+    
+    claims := JWTClaims{
+        UserID: userID,
+        Email:  email,
+        RegisteredClaims: jwt.RegisteredClaims{
+            IssuedAt:  jwt.NewNumericDate(now),
+            ExpiresAt: jwt.NewNumericDate(maliciousExpiresAt),
+            Subject:   fmt.Sprintf("%d", userID),
+        },
+    }
+    
+    // Sign with wrong secret to simulate tampering
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    tokenString, err := token.SignedString([]byte("wrong-secret-malicious-attempt"))
+    assert.NoError(t, err)
+    
+    return tokenString
 }
 
 func TestAuthService_ForgotPassword(t *testing.T) {
@@ -464,4 +515,48 @@ func TestAuthService_ChangePassword(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+// Helper function to create an expired token
+func createExpiredToken(t *testing.T, userID uint, email string, secret string) string {
+    now := time.Now()
+    expiredTime := now.Add(-1 * time.Hour) // 1 hour ago
+    
+    claims := JWTClaims{
+        UserID: userID,
+        Email:  email,
+        RegisteredClaims: jwt.RegisteredClaims{
+            IssuedAt:  jwt.NewNumericDate(expiredTime.Add(-24 * time.Hour)),
+            ExpiresAt: jwt.NewNumericDate(expiredTime),
+            Subject:   fmt.Sprintf("%d", userID),
+        },
+    }
+    
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    tokenString, err := token.SignedString([]byte(secret))
+    assert.NoError(t, err)
+    
+    return tokenString
+}
+
+// Helper function to create token with wrong secret
+func createTokenWithWrongSecret(t *testing.T, userID uint, email string) string {
+    now := time.Now()
+    expiresAt := now.Add(24 * time.Hour)
+    
+    claims := JWTClaims{
+        UserID: userID,
+        Email:  email,
+        RegisteredClaims: jwt.RegisteredClaims{
+            IssuedAt:  jwt.NewNumericDate(now),
+            ExpiresAt: jwt.NewNumericDate(expiresAt),
+            Subject:   fmt.Sprintf("%d", userID),
+        },
+    }
+    
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    tokenString, err := token.SignedString([]byte("completely-wrong-secret"))
+    assert.NoError(t, err)
+    
+    return tokenString
 }
